@@ -12,28 +12,21 @@ const servers = [
 ];
 
 let current = 0;
-
-// Counter to track requests sent to each server
-let requestCount = {
+const requestCount = {
   'http://localhost:4000': 0,
   'http://localhost:4001': 0
 };
-app.get('/status', (req, res) => {
-  res.json(requestCount);
-});
 
-// Utility function to check server availability
+const healthyServers = new Set();
+
+// Health check function (ping /health endpoint)
 function checkServerHealth(serverUrl) {
   return new Promise((resolve) => {
     const req = http.get(`${serverUrl}/health`, (res) => {
       resolve(res.statusCode === 200);
     });
 
-    req.on('error', (err) => {
-      console.log(`[DOWN] ${serverUrl} - ${err.message}`);
-      resolve(false);
-    });
-
+    req.on('error', () => resolve(false));
     req.setTimeout(1000, () => {
       req.destroy();
       resolve(false);
@@ -41,8 +34,39 @@ function checkServerHealth(serverUrl) {
   });
 }
 
-// Middleware to handle routing with health check
+// Background task to update healthy server list every 5 seconds
+function updateHealthStatus() {
+  servers.forEach(async (server) => {
+    const healthy = await checkServerHealth(server);
+    if (healthy) {
+      if (!healthyServers.has(server)) {
+        console.log(`[UP] ${server} is now healthy.`);
+      }
+      healthyServers.add(server);
+    } else {
+      if (healthyServers.has(server)) {
+        console.log(`[DOWN] ${server} is now unreachable.`);
+      }
+      healthyServers.delete(server);
+    }
+  });
+}
+
+setInterval(updateHealthStatus, 5000);
+updateHealthStatus(); // run once on startup
+
+// Route: /status — show number of requests per server
+app.get('/status', (req, res) => {
+  res.json({
+    requestCount,
+    healthyServers: Array.from(healthyServers)
+  });
+});
+
+// Proxy middleware
 app.use(async (req, res, next) => {
+  if (req.path === '/status') return next();
+
   const ip = req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress;
   console.log("Client IP:", ip);
 
@@ -52,37 +76,19 @@ app.use(async (req, res, next) => {
     console.log("Local IP detected. Skipping GeoIP lookup.");
   }
 
-  // Try to find a healthy server
-  let attempts = 0;
-  let target;
-
-  while (attempts < servers.length) {
-    const index = (current + attempts) % servers.length;
-    const server = servers[index];
-    const healthy = await checkServerHealth(server);
-
-    if (healthy) {
-      target = server;
-      current = (index + 1) % servers.length;
-      break;
-    } else {
-      console.log(`[SKIP] Skipping ${server} — server is not healthy`);
-    }
-
-    attempts++;
-  }
-
-  if (!target) {
+  const healthyList = Array.from(healthyServers);
+  if (healthyList.length === 0) {
     console.log("[ERROR] No available servers. Returning 503.");
-    res.status(503).send("All servers are down. Please try again later.");
-    return;
+    return res.status(503).send("All servers are down. Please try again later.");
   }
 
-  // Increment the request count for the chosen server
-  requestCount[target]++;
-  console.log(`[ROUTE] Routing request to ${target}. Total requests to this server: ${requestCount[target]}`);
+  const index = current % healthyList.length;
+  const target = healthyList[index];
+  current++;
 
-  // Proxy the request
+  requestCount[target]++;
+  console.log(`[ROUTE] Routing to ${target}. Total: ${requestCount[target]}`);
+
   const proxy = createProxyMiddleware({
     target,
     changeOrigin: true
@@ -92,5 +98,5 @@ app.use(async (req, res, next) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`Load balancer running at http://localhost:${PORT}`);
+  console.log(`✅ Load balancer running at http://localhost:${PORT}`);
 });
