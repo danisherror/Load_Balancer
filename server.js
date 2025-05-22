@@ -13,6 +13,12 @@ const servers = [
 
 let current = 0;
 
+// Counter to track requests sent to each server
+let requestCount = {
+  'http://localhost:4000': 0,
+  'http://localhost:4001': 0
+};
+
 // Utility function to check server availability
 function checkServerHealth(serverUrl) {
   return new Promise((resolve) => {
@@ -69,7 +75,9 @@ app.use(async (req, res, next) => {
     return;
   }
 
-  console.log(`[ROUTE] Routing request to ${target}`);
+  // Increment the request count for the chosen server
+  requestCount[target]++;
+  console.log(`[ROUTE] Routing request to ${target}. Total requests to this server: ${requestCount[target]}`);
 
   // Proxy the request
   const proxy = createProxyMiddleware({
