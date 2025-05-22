@@ -19,7 +19,7 @@ function checkServerHealth(serverUrl) {
     const req = http.get(`${serverUrl}/health`, (res) => {
       resolve(res.statusCode === 200);
     });
-
+    
     req.on('error', () => resolve(false));
     req.setTimeout(1000, () => {
       req.destroy();
