@@ -9,14 +9,14 @@ const PORT = 3000;
 const servers = [
   'http://localhost:4000',
   'http://localhost:4001',
-'http://localhost:4002'
+  'http://localhost:4002'
 ];
 
 let current = 0;
 const requestCount = {
   'http://localhost:4000': 0,
   'http://localhost:4001': 0,
-'http://localhost:4002': 0
+  'http://localhost:4002': 0
 };
 
 const healthyServers = new Set();
