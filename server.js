@@ -26,7 +26,6 @@ function checkServerHealth(serverUrl) {
     });
 
     req.setTimeout(1000, () => {
-      console.log(`[TIMEOUT] ${serverUrl} - Server did not respond in time`);
       req.destroy();
       resolve(false);
     });
