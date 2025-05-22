@@ -8,7 +8,8 @@ const PORT = 3000;
 
 const servers = [
   'http://localhost:4000',
-  'http://localhost:4001'
+  'http://localhost:4001',
+'http://localhost:4002'
 ];
 
 let current = 0;
