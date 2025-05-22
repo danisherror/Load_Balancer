@@ -18,6 +18,9 @@ let requestCount = {
   'http://localhost:4000': 0,
   'http://localhost:4001': 0
 };
+app.get('/status', (req, res) => {
+  res.json(requestCount);
+});
 
 // Utility function to check server availability
 function checkServerHealth(serverUrl) {
