@@ -15,7 +15,8 @@ const servers = [
 let current = 0;
 const requestCount = {
   'http://localhost:4000': 0,
-  'http://localhost:4001': 0
+  'http://localhost:4001': 0,
+'http://localhost:4002': 0
 };
 
 const healthyServers = new Set();
