@@ -19,9 +19,14 @@ function checkServerHealth(serverUrl) {
     const req = http.get(`${serverUrl}/health`, (res) => {
       resolve(res.statusCode === 200);
     });
-    
-    req.on('error', () => resolve(false));
+
+    req.on('error', (err) => {
+      console.log(`[DOWN] ${serverUrl} - ${err.message}`);
+      resolve(false);
+    });
+
     req.setTimeout(1000, () => {
+      console.log(`[TIMEOUT] ${serverUrl} - Server did not respond in time`);
       req.destroy();
       resolve(false);
     });
@@ -52,15 +57,20 @@ app.use(async (req, res, next) => {
       target = server;
       current = (index + 1) % servers.length;
       break;
+    } else {
+      console.log(`[SKIP] Skipping ${server} — server is not healthy`);
     }
 
     attempts++;
   }
 
   if (!target) {
+    console.log("[ERROR] No available servers. Returning 503.");
     res.status(503).send("All servers are down. Please try again later.");
     return;
   }
+
+  console.log(`[ROUTE] Routing request to ${target}`);
 
   // Proxy the request
   const proxy = createProxyMiddleware({
